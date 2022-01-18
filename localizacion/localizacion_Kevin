@@ -1,12 +1,9 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Rob�tica Computacional 
+# Rob�tica Computacional
 # Grado en Ingenier�a Inform�tica (Cuarto)
-# Pr�ctica 5:
-#     Simulaci�n de robots m�viles holon�micos y no holon�micos.
 
-from email.mime import image
 import sys
 from math import *
 from robot import robot
@@ -56,27 +53,29 @@ def mostrar(objetivos,ideal,trayectoria):
   plt.clf()
 
 def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
-  # Buscar la localización más probable del robot, a partir de su sistema
-  # sensorial, dentro de una región cuadrada de centro "centro" y lado "2*radio".
-  minError = 100
-  xValorCentro = centro[0]  # Guardamos las coordenadas del centro
-  yValorCentro = centro[1]
-  imagen = []   # imagen es un array donde guardamos todos los errores
-  # Recorre el rango [-radio hasta radio] en función del último valor
-  for i in np.arange(-radio, radio, 0.1):   # Primero en un sentido (vertical)
+  # Buscar la localizacion mas probable del robot, a partir de su sistema
+  # sensorial, dentro de una regian cuadrada de centro "centro" y lado "2*radio".
+  x = centro[0]
+  y = centro[1]
+  imagen = []
+  minerror = 100
+
+  # Se recorre el radio (puesto a 0.5) en 0.1 (x,y) para buscar una nueva posición 
+  # cuyo margen de error sea el mínimo 
+  # Una vez encontrado, es el que se guarda como posición ideal.
+  
+  for j in np.arange(-radio, radio, 0.1):
     imagen.append([])
-    for j in np.arange(-radio, radio, 0.1): # Luego en el otro sentido (horizontal)
-      ideal.set(centro[0] + i , centro[1] + j, ideal.orientation)
+    for i in np.arange(-radio, radio, 0.1):
+      ideal.set(centro[0]+i , centro[1]+j, ideal.orientation)
       error = real.measurement_prob(ideal.sense(balizas), balizas)
       imagen[-1].append(error)
-      if (error < minError):    # Nos quedamos con el error más pequeño
-        minError = error        # Nos quedamos con las coordenadas del error más pequeño
-        xValorCentro = centro[0] + j  # El centro 
-        yValorCentro = centro[1] + i
+      if (error < minerror):
+        minerror = error
+        x = centro[0]+i
+        y = centro[1]+j
 
-  #quedarnos con la posición del error menor, y colocar el robot ideal en esta posición 
-  ideal.set(xValorCentro, yValorCentro, ideal.orientation)
-  
+  ideal.set(x, y, real.orientation)
 
   if mostrar:
     plt.ion() # modo interactivo
@@ -86,17 +85,12 @@ def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
     plt.imshow(imagen,extent=[centro[0]-radio,centro[0]+radio,\
                               centro[1]-radio,centro[1]+radio])
     balT = np.array(balizas).T.tolist();
-    plt.plot(balT[0],balT[1],'or',ms=10)                  # balizas rojas
-    plt.plot(ideal.x,ideal.y,'D',c='#ff00ff',ms=10,mew=2) # robot ideal en rosa 
-    plt.plot(real.x, real.y, 'D',c='#00ff00',ms=10,mew=2) # robot real en verde
+    plt.plot(balT[0],balT[1],'or',ms=10)
+    plt.plot(ideal.x,ideal.y,'D',c='#ff00ff',ms=10,mew=2)
+    plt.plot(real.x, real.y, 'D',c='#00ff00',ms=10,mew=2)
     plt.show()
     raw_input()
     plt.clf()
-
-
-def relocalizacion(robot_ideal, robot_real):
-  if robot_ideal.measurement_prob(robot_real.sense(objetivos), objetivos) > EPSILON:
-      localizacion(objetivos,robot_real,robot_ideal,robot_ideal.pose(),0.5,0)
 
 # ******************************************************************************
 
@@ -125,7 +119,7 @@ if len(sys.argv)<2 or int(sys.argv[1])<0 or int(sys.argv[1])>=len(trayectorias):
 objetivos = trayectorias[int(sys.argv[1])]
 
 # Definici�n de constantes:
-EPSILON = .1                # Umbral de distancia
+EPSILON = .12            # Umbral de distancia
 V = V_LINEAL/FPS            # Metros por fotograma
 W = V_ANGULAR*pi/(180*FPS)  # Radianes por fotograma
 
@@ -138,7 +132,7 @@ real.set_noise(.01,.01,.1)  # Ruido lineal / radial / de sensado
 real.set(*P_INICIAL)
 
 random.seed(0)
-tray_ideal = [ideal.pose()]   # Trayectoria percibida
+tray_ideal = [ideal.pose()]  # Trayectoria percibida
 tray_real = [real.pose()]     # Trayectoria seguida
 
 tiempo  = 0.
@@ -146,15 +140,13 @@ espacio = 0.
 #random.seed(0)
 random.seed(datetime.now())
 
-## Calculamos el centro para localización
-centro = [len(objetivos) / 2, len(objetivos) / 2]
-## Llamamos a localización para que el robot sepa en el punto en el que está.
-# balizas, robot real, robot ideal, centro, radio, mostrar = 1
-localizacion(objetivos, real, ideal, centro, 3, 1)
+#
+# INICIALIZACIÓN del robot
+#
+centro = [len(objetivos) /2, len(objetivos) / 2]
+localizacion(objetivos,real,ideal,centro,7,1)
 
 for punto in objetivos:
-  # Mientras la distancia del robot a cada punto sea mayor que EPSILON
-  # y mejor que 1000 (distancia máximo permitida, entiendo)
   while distancia(tray_ideal[-1],punto) > EPSILON and len(tray_ideal) <= 1000:
     pose = ideal.pose()
 
@@ -165,7 +157,6 @@ for punto in objetivos:
     if (v > V): v = V
     if (v < 0): v = 0
 
-    # Ajustamos la posición del robot ideal
     ideal.set(real.x,real.y,ideal.orientation)
 
     if HOLONOMICO:
@@ -176,11 +167,16 @@ for punto in objetivos:
     else:
       ideal.move_triciclo(w,v,LONGITUD)
       real.move_triciclo(w,v,LONGITUD)
+
+    #
+    # Después de realizar el desplazamiento, se calcula cuánto difiere
+    # la posición real con la ideal. Si es mayor que la precisión, se llama
+    # a localización para corregir
+    #
+
+    if ideal.measurement_prob(real.sense(objetivos), objetivos) > EPSILON:
+      localizacion(objetivos,real,ideal,ideal.pose(),0.5,0)
     
-    
-    ## Llamamos a relocalizacion por si hay que corregir 
-    relocalizacion(ideal, real)
-    # Aplicamos la nueva pose a los robots
     tray_ideal.append(ideal.pose())
     tray_real.append(real.pose())
     espacio += v
@@ -191,6 +187,5 @@ if len(tray_ideal) > 1000:
 print "Recorrido: "+str(round(espacio,3))+"m / "+str(tiempo/FPS)+"s"
 print "Distancia real al objetivo: "+\
     str(round(distancia(tray_real[-1],objetivos[-1]),3))+"m"
-
-mostrar(objetivos,tray_ideal,tray_real)  # Representación gráfica
+mostrar(objetivos,tray_ideal,tray_real)  # Representaci�n gr�fica
 
