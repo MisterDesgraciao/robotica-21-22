@@ -58,7 +58,7 @@ def mostrar(objetivos,ideal,trayectoria):
 def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
   # Buscar la localización más probable del robot, a partir de su sistema
   # sensorial, dentro de una región cuadrada de centro "centro" y lado "2*radio".
-  minError = 100
+  minError = 1000           # Valor fácilmente mejorable
   xValorCentro = centro[0]  # Guardamos las coordenadas del centro
   yValorCentro = centro[1]
   imagen = []   # imagen es un array donde guardamos todos los errores
@@ -71,13 +71,13 @@ def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
       imagen[-1].append(error)
       if (error < minError):    # Nos quedamos con el error más pequeño
         minError = error        # Nos quedamos con las coordenadas del error más pequeño
-        xValorCentro = centro[0] + j  # El centro 
+        xValorCentro = centro[0] + j # Coordenadas del nuevo centro
         yValorCentro = centro[1] + i
 
   #quedarnos con la posición del error menor, y colocar el robot ideal en esta posición 
   ideal.set(xValorCentro, yValorCentro, ideal.orientation)
   
-
+  # Mapa de calor/probabilidad
   if mostrar:
     plt.ion() # modo interactivo
     plt.xlim(centro[0]-radio,centro[0]+radio)
@@ -95,8 +95,9 @@ def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
 
 
 def relocalizacion(robot_ideal, robot_real):
-  if robot_ideal.measurement_prob(robot_real.sense(objetivos), objetivos) > EPSILON:
-      localizacion(objetivos,robot_real,robot_ideal,robot_ideal.pose(),0.5,0)
+  # Si la distancia del robot ideal es superior a EPSILON, relocalizamos
+  if robot_ideal.measurement_prob(robot_ideal.sense(objetivos), objetivos) > EPSILON:
+    localizacion(objetivos, robot_real, robot_ideal, robot_ideal.pose(), 0.5, 0)
 
 # ******************************************************************************
 
@@ -150,7 +151,7 @@ random.seed(datetime.now())
 centro = [len(objetivos) / 2, len(objetivos) / 2]
 ## Llamamos a localización para que el robot sepa en el punto en el que está.
 # balizas, robot real, robot ideal, centro, radio, mostrar = 1
-localizacion(objetivos, real, ideal, centro, 3, 1)
+localizacion(objetivos, real, ideal, centro, 4, 1)
 
 for punto in objetivos:
   # Mientras la distancia del robot a cada punto sea mayor que EPSILON
@@ -165,7 +166,7 @@ for punto in objetivos:
     if (v > V): v = V
     if (v < 0): v = 0
 
-    # Ajustamos la posición del robot ideal
+    # Ajustamos la posición del robot ideal en función del real
     ideal.set(real.x,real.y,ideal.orientation)
 
     if HOLONOMICO:
@@ -180,7 +181,8 @@ for punto in objetivos:
     
     ## Llamamos a relocalizacion por si hay que corregir 
     relocalizacion(ideal, real)
-    # Aplicamos la nueva pose a los robots
+
+    # Aplicamos la nueva pose a la trayectoria de los robots
     tray_ideal.append(ideal.pose())
     tray_real.append(real.pose())
     espacio += v
