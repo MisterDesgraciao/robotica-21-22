@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Robótica Computacional 
-# Grado en Ingeniería Informática (Cuarto)
+# Robï¿½tica Computacional 
+# Grado en Ingenierï¿½a Informï¿½tica (Cuarto)
 # Clase robot
 
 from math import *
@@ -12,7 +12,7 @@ import copy
 
 class robot:
   def __init__(self):
-    # Inicializacion de pose y parámetros de ruído
+    # Inicializacion de pose y parï¿½metros de ruï¿½do
     self.x             = 0.
     self.y             = 0.
     self.orientation   = 0.
@@ -36,7 +36,7 @@ class robot:
     while self.orientation < -pi: self.orientation += 2*pi
 
   def set_noise(self, new_f_noise, new_t_noise, new_s_noise):
-    # Modificar los parámetros de ruído
+    # Modificar los parï¿½metros de ruï¿½do
     self.forward_noise = float(new_f_noise);
     self.turn_noise    = float(new_t_noise);
     self.sense_noise   = float(new_s_noise);
@@ -57,7 +57,7 @@ class robot:
     return d
 
   def move(self, turn, forward):
-    # Modificar pose del robot (holonómico)
+    # Modificar pose del robot (holonï¿½mico)
     self.orientation += float(turn) + random.gauss(0., self.turn_noise)
     while self.orientation >  pi: self.orientation -= 2*pi
     while self.orientation < -pi: self.orientation += 2*pi
@@ -76,14 +76,15 @@ class robot:
     self.y += sin(self.orientation) * dist
 
   def Gaussian(self, mu, sigma, x):
-    # Calcular la probabilidad de 'x' para una distribución normal
-    # de media 'mu' y desviación típica 'sigma'
+    # Calcular la probabilidad de 'x' para una distribuciï¿½n normal
+    # de media 'mu' y desviaciï¿½n tï¿½pica 'sigma'
     
     if sigma:
       return exp(-(((mu-x)/sigma)**2)/2)/(sigma*sqrt(2*pi))
     else:
       return 0
-
+  
+  # P(Z=zn| X)
   def measurement_prob(self, measurements, landmarks):
     # Calcular la probabilidad de una medida.
     self.weight = 0.
@@ -103,14 +104,22 @@ class robot:
     return self.weight
 
   def __repr__(self):
-    # Representación de la clase robot
+    # Representaciï¿½n de la clase robot
     return '[x=%.6s y=%.6s orient=%.6s]' % \
             (str(self.x), str(self.y), str(self.orientation))
 
 def hipotesis(pf):
-  # Pose de la partícula de mayor peso del filtro de partículas.
+  # Pose de la partï¿½cula de mayor peso del filtro de partï¿½culas.
   return max(pf,key=lambda r:r.weight).pose()
 
+# Si todas las particulas pesan 0 entonces aplicas el resampleado.
+# Si por el contrario no pesan 0 entonces aplicas el resampleado;
+#   para ello creas un historigrama con probabilidades tal que te quedas
+#   en el nuevo filtro mayormente con las que tengan mayor peso. Reseteas
+#   la probabilidad a posteriori de las particulas del nuevo filtro y
+#   almacenas en ellas la probabilidad a priori con el valor de posteriori
+#   antiguo.
+#   La mayoria del tiempo se aplica el resampleado, rara vez no se hace.
 def resample(pf_in, particulas):
   # Remuestreo
   histograma_acumulativo = [0]
@@ -122,9 +131,10 @@ def resample(pf_in, particulas):
     maximo = maximo + robot.weight
     histograma_acumulativo.append(maximo)
 
-  if not maximo:
-    return pf_in[:particulas]
+  if not maximo: # devolver si hay particulas con peso distinto de 0
+    return pf_in[:particulas] # rango [0,particulas]
   #print 'MAX: ', maximo
+  # Convertir valores del histograma a probabilidades
   histograma_acumulativo = [h/maximo for h in histograma_acumulativo[1:]]
   pf_out = []
   #print histograma_acumulativo
@@ -134,6 +144,7 @@ def resample(pf_in, particulas):
     j = 0
     while r > histograma_acumulativo[j]: j += 1
     #print j
+
 
     pf_out.append(pf_in[j].copy())
     pf_out[-1].old_weight = pf_out[-1].weight
