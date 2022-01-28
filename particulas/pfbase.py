@@ -50,7 +50,7 @@ def mostrar(bordes,objetivos,trayectoria,trayectreal,trayectideal,filtro):
     plt.arrow(p.x,p.y,dx,dy,head_width=.05,head_length=.05,color='k')
   pinta(trayectoria,'--g')
   pinta(trayectreal,'-r')
-  pinta(trayectideal,'-g')
+  pinta(trayectideal,'-g')  # añadida línea verde para la trayectoria ideal
   pinta(objetivos,'-.ob')
   p = hipotesis(filtro)
   dx = cos(p[2])*.05
@@ -76,20 +76,40 @@ def genera_filtro(bordes, num_particulas, balizas, real, centro=[2,2], radio=1):
     filtro.append(instanceOfRobot)
   return filtro
 
-# def dispersion(filtro):
-  
-  # Dispersion espacial del filtro de particulas
+def newRobotList(real, ideal, filtro):
+  robotsList = list(filtro)
+  robotsList.insert(0, real) # Para que luego al mover siempre se mueva primero el real
+  robotsList.insert(1, ideal)
+  return robotsList
 
-# Recibe todos los robots y se queda con la mejor media (mejor trayectoria)
-# def peso_medio(filtro):
-  # Peso medio normalizado del filtro de particulas
+# Dispersion espacial del filtro de particulas
+# Aproximacion de la disperción a partir de la media de la distancia
+# de una particula cualquiera a el resto.
+def dispersion(filtro):
+  particulaArbitraria = filtro[random.randrange(0, len(filtro))]
+  distanciaMedia = 0 # Infinito
+  for particula in filtro:
+    distanciaMedida = distancia(particulaArbitraria.pose(), particula.pose())
+    ratio = distanciaMedida / len(filtro)
+    distanciaMedia += ratio
+  return distanciaMedia
+
+# Peso medio normalizado del filtro de particulas
+# Si es alto significa que estás bien localizadas
+def peso_medio(filtro, real, balizas):
+  pesoTotal = 0
+  for particula in filtro:
+    pesoTotal += particula.measurement_prob(real.sense(balizas), balizas)
+  return pesoTotal / len(filtro)
+
 
 # ******************************************************************************
 
+#random.seed(0)
 random.seed(datetime.now())
 
 # Definici�n del robot:
-P_INICIAL = [2.,2.,0.] # Pose inicial (posici�n y orientacion)
+P_INICIAL = [2.,3.,0.] # Pose inicial (posici�n y orientacion)
 V_LINEAL  = .7         # Velocidad lineal    (m/s)
 V_ANGULAR = 140.       # Velocidad angular   (�/s)
 FPS       = 10.        # Resoluci�n temporal (fps)
@@ -99,7 +119,7 @@ LONGITUD   = .1        # Longitud del robot
 
 N_PARTIC  = 50         # Tama�o del filtro de part�culas
 N_INICIAL = 2000       # Tama�o inicial del filtro
-N_PARTICULAS = 50      # Número de partículas generadas
+N_PARTICULAS = 100      # Número de partículas generadas
 
 # Definici�n de trayectorias:
 trayectorias = [
@@ -149,16 +169,10 @@ trayectreal = [real.pose()]
 
 # Array de robots
 # Seleccionar hip�tesis de localizaci�n y actualizar la trayectoria
-        # bordes, num_particulas, balizas, real, centro=[2,2], radio=3
+        # bordes, num_particulas, balizas, real, centro=[2,2], radio=1
 filtro = genera_filtro(bordes, N_PARTICULAS, objetivos, real)
 
-def newRobotList(filtro, real, ideal):
-  robotsList = list(filtro)
-  robotsList.insert(0, real) # Para que luego al mover siempre se mueva primero el real
-  robotsList.insert(1, ideal)
-  return robotsList
-
-robotsList = newRobotList(filtro, real, ideal)
+robotsList = newRobotList(real, ideal, filtro)
 
 # Inicializar el array con los objetivos para cada particula
 indicesObjetivosDeLosRobots = []
@@ -174,6 +188,14 @@ while not robotsHanLlegadoAlFinal:
   for particula in robotsList:
     posX = particula.pose()[0]
     posY = particula.pose()[1]
+
+    # necesito localizar el mejor robot (ideal)
+    aux0 = hipotesis(filtro)[0]
+    aux1 = hipotesis(filtro)[1]
+    aux2 = hipotesis(filtro)[2]
+    ideal.set(aux0, aux1, aux2)
+    trayectoriaIdeal.append(ideal.pose())
+
     # Compruebo si la particula ha llegado a su objetivo
     if distancia([posX, posY], trayectoria[indicesObjetivosDeLosRobots[i]]) < EPSILON:
       # Cambiar a siguiente objetivo
@@ -183,6 +205,13 @@ while not robotsHanLlegadoAlFinal:
       # Mover particula hacia el objetivo
       objetivoActual = trayectoria[indicesObjetivosDeLosRobots[i]]
       poseRobot = particula.pose()
+
+      # Si es el robot real, se mueve igual que el ideal
+      if particula == real:
+        trayectoriaReal.append(real.pose())
+        objetivoActual = trayectoria[indicesObjetivosDeLosRobots[1]]
+        poseRobot = ideal.pose()
+
       w = angulo_rel(poseRobot, objetivoActual)
       if w > W:  w =  W
       if w < -W: w = -W
@@ -197,29 +226,41 @@ while not robotsHanLlegadoAlFinal:
       else:
         particula.move_triciclo(w,v,LONGITUD)
 
-      if (particula == real): trayectoriaReal.append(real.pose())
-
-      # Calcular la verosimilitud para cada robot y para la misma medida
-      # para que solo varie la posicion. Modifica el peso del robot. 
-      # Primero se debe mover el robot real, luego se calcula la
-      # verosimilitud para el resto. Por eso en la lista de robots
-      # el real se ha insertado el primero.
-      particula.measurement_prob(real.sense(balizas), balizas)
-      # print "measurement_prob[", i, "]: ", particula.weight
-
       espacio += v
       tiempo  += 1
     i += 1
     
-  trayectoriaIdeal.append(hipotesis(filtro))
-  # remuestreo y añadimos esos nuevos robots a la lista
-  filtro = resample(filtro, N_PARTICULAS)
-  robotsList = newRobotList(filtro, real, ideal)
+  # Calcular la verosimilitud para cada robot y para la misma medida
+  # para que solo varie la posicion. Modifica el peso del robot. 
+  # Primero se debe mover el robot real, luego se calcula la
+  # verosimilitud para el resto. Por eso en la lista de robots
+  # el real se ha insertado el primero.
 
-  # mostramos
-  mostrar(bordes, objetivos,trayectoria,trayectoriaReal,trayectoriaIdeal,robotsList)
+  # TODO: 
+  # Cuando el measuremente prob da valores pequeños -> más partículas
+  # y viceversa.
+  # Vamos ajustando el número de partículas.
+  pesoMedio = peso_medio(filtro, real, balizas)
+  dispersionMedia = dispersion(filtro)
+  print "peso medio: ", pesoMedio 
+  print "dispersion: ", dispersionMedia
+  if (pesoMedio < 1): # and dispersionMedia < 2):
+    N_PARTICULAS = N_PARTICULAS * 1.5
+  else:
+    N_PARTICULAS = N_PARTICULAS * 0.5 + 20
   
-  # comprobar si todas las particulas han llegado al final
+  if (N_PARTICULAS > 2000):
+    N_PARTICULAS = 1000
+  
+  #N_PARTICULAS = int(N_PARTICULAS)
+  N_PARTICULAS = 100  # Le pongo una variable entera porque si no, peta
+  filtro = resample(filtro, N_PARTICULAS)
+  robotsList = newRobotList(real, ideal, filtro)
+
+  # Mostramos
+  mostrar(bordes,objetivos,trayectoria,trayectoriaReal,trayectoriaIdeal,robotsList)
+  
+  # Comprobar si todas las particulas han llegado al final
   numeroDeParticulasEnFinal = 0
   for j in range(len(indicesObjetivosDeLosRobots)):
     indiceUltimoObjetivo = len(trayectoria)
@@ -233,8 +274,8 @@ while not robotsHanLlegadoAlFinal:
 if len(trayectoria) > 1000:
   print "<< ! >> Puede que no se haya alcanzado la posici�n final."
 print "Recorrido: "+str(round(espacio,3))+"m / "+str(tiempo/FPS)+"s"
-#print "Error medio de la trayectoria: "+str(round(sum(\
-#    [distancia(trayectoria[i],trayectreal[i])\
-#    for i in range(len(trayectoria))])/tiempo,3))+"m"
+print "Error medio de la trayectoria: "+str(round(sum(\
+    [distancia(trayectoria[i],trayectreal[i])\
+    for i in range(len(trayectoria))])/tiempo,3))+"m"
 raw_input()
 
