@@ -61,8 +61,11 @@ def cin_dir(th,a):
 
 # Modificación:
 # Añadir ángulos máximos para cada una de las articulaciones en ambos sentidos
-max_th=[3.1416, 3.1416, 3.1416]
+max_th=[0.5, 3.1416, 3.1416]
 # max_th=[3.1416, 3.1416, 3.1416]  # Valores en radianes por defecto. Es decir, permiten flexibilidad plena.
+
+# Articulación extensible
+extensible=[1,0,0]
 
 # valores articulares arbitrarios para la cinemática directa inicial
 th=[0.,0.,0.]   # ángulos de cada punto
@@ -113,14 +116,14 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
       print "negative in arm ", i
       print "productoVectorial[2]: ", productoVectorial[2]
       thetaLastToObj = -thetaLastToObj
-    # Calcula la cinemática directa de la tabla construida, calcula el conjunto de nuevos puntos y los asigna
+    # Suma el valor corrector del ángulo de R
     th[indexOfR] += thetaLastToObj
-    # if th[indexOfR] < -max_th[indexOfR]:
-    #   th[indexOfR] = -max_th[indexOfR]
-    # elif th[indexOfR] > max_th[indexOfR]:
-    #   th[indexOfR] = max_th[indexOfR]
+    if th[indexOfR] < -max_th[indexOfR]:
+      th[indexOfR] = -max_th[indexOfR]
+    elif th[indexOfR] > max_th[indexOfR]:
+      th[indexOfR] = max_th[indexOfR]
     # Antes de calcular la cinemática directa, sabemos la distancia que falta respecto al punto
-    if max_th[indexOfR] == 0:
+    if extensible[indexOfR] == 1:
       vectLastToObj = [objetivo[0] - O[i][3][0], objetivo[1] - O[i][3][1]]
       distLastToObj = sqrt(vectLastToObj[0] ** 2 + vectLastToObj[1] ** 2)
       if distLastToObj > EPSILON:

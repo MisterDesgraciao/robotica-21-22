@@ -178,7 +178,6 @@ for punto in objetivos:
       ideal.move_triciclo(w,v,LONGITUD)
       real.move_triciclo(w,v,LONGITUD)
     
-    
     ## Llamamos a relocalizacion por si hay que corregir 
     relocalizacion(ideal, real)
 

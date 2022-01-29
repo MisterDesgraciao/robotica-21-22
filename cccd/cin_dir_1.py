@@ -93,17 +93,17 @@ def matriz_T(d,theta,a,alpha):
 
 plt.ion() # Modo interactivo
 # Introducción de los valores de las articulaciones
-nvar=0 # Número de variables
+nvar=6 # Número de variables
 if len(sys.argv) != nvar+1:
   sys.exit('El número de articulaciones no es el correcto ('+str(nvar)+')')
 p=[float(i) for i in sys.argv[1:nvar+1]]
 
 # Parámetros D-H:
-#     1'    1    2'    2    3    41    42   7   8   9
-d  = [5,  -2,   0,   2,   5,    0,    0,  0,  0]
-th = [0,   0,   0,   90,  0,    0,   0,  0,  0]
-a  = [0,   0,   3,   0,   0,    1,    0,  0,  0]
-al = [90,  0,   0,   90,  90,   45,    0,  0,  0]
+#     1    2    3    4   5.1  5.2   6.1   6.2   EF   9
+d  = [p[0],0,   0,   5,   1,    1,   p[3],  p[4],  1+p[5]]
+th = [p[1],0, -90,   0,   0,    0,    0,  0,  0]
+a  = [2,   2,   0,   0, p[2],-p[2],    0,  0,  0]
+al = [0, -90,  90,   0,   0,    0,    0,  0,  0]
 
 # Orígenes para cada articulación
 o00=[0,0,0,1]
@@ -148,17 +148,17 @@ o10 =np.dot(T01, o11).tolist()
 o20 =np.dot(T02, o22).tolist()
 o30 =np.dot(T03, o33).tolist()
 o40 =np.dot(T04, o44).tolist()
-o55 =np.dot(T05_1, o55).tolist()
-o66 =np.dot(T05_2, o66).tolist()
-o61 =np.dot(T06_1, o77).tolist()
-o62 =np.dot(T06_2, o88).tolist()
+o051 =np.dot(T05_1, o55).tolist()
+o052 =np.dot(T05_2, o66).tolist()
+o061 =np.dot(T06_1, o77).tolist()
+o062 =np.dot(T06_2, o88).tolist()
 oef =np.dot(T0_ef, o99).tolist()
 
 # Mostrar resultado de la cinemática directa
 # muestra_origenes([o00,o10,o20,o30,o40,[[o51,o61],[o52,o62]]])
 # muestra_robot   ([o00,o10,o20,o30,o40,[[o51,o61],[o52,o62]]])
 
-muestra_origenes([o00,o10,o20,o30,o40,o55,o66])
-muestra_robot   ([o00,o10,o20,o30,o40,o55,o66])
+muestra_origenes([o00,o10,o20,o30,o40,[o051,o052,oef],[o061,o062]])
+muestra_robot   ([o00,o10,o20,o30,o40,[o051,o052,oef],[o061,o062]])
 input()
 
